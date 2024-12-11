@@ -33,7 +33,6 @@ func doP2() int {
 	for _, v := range stonesList {
 		stones[v] += 1
 	}
-
 	for i := 0; i < 75; i++ {
 		stones = cycleStonesMap(stones)
 	}
@@ -47,12 +46,12 @@ func doP2() int {
 }
 
 func cycleStonesMap(stones map[int]int) map[int]int {
-	update := make(map[int]int)
+	update := make(map[int]int, len(stones))
 
 	for k := range stones {
 		if k == 0 {
 			update[1] += stones[k]
-		} else if l := lenLoop(k); l%2 == 0 {
+		} else if l := lenInt(k); l%2 == 0 {
 			front, back := splitInt(k, l)
 			update[front] += stones[k]
 			update[back] += stones[k]
@@ -69,7 +68,7 @@ func cycleStones(stones []int) []int {
 	for _, v := range stones {
 		if v == 0 {
 			update = append(update, 1)
-		} else if l := lenLoop(v); l%2 == 0 {
+		} else if l := lenInt(v); l%2 == 0 {
 			front, back := splitInt(v, l)
 			update = append(update, front, back)
 		} else {
@@ -79,34 +78,11 @@ func cycleStones(stones []int) []int {
 	return update
 }
 func splitInt(n, l int) (int, int) {
-	slc := make([]int, l)
-	i := 0
-	for n > 0 {
-		slc[i] = n % 10
-		n /= 10
-		i++
-	}
-	f, b := 0, 0
-	for i, v := range slc[:len(slc)/2] {
-		b += int(math.Pow10(i)) * v
-	}
-	for i, v := range slc[len(slc)/2:] {
-		f += int(math.Pow10(i)) * v
-	}
-
-	return f, b
+	return n % int(math.Pow10(l/2)), n / int(math.Pow10(l/2))
 }
 
-func lenLoop(i int) int {
-	if i == 0 {
-		return 1
-	}
-	count := 0
-	for i != 0 {
-		i /= 10
-		count++
-	}
-	return count
+func lenInt(i int) int {
+	return int(math.Log10(float64(i)) + 1)
 }
 
 func parse() []int {
