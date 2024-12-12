@@ -30,11 +30,14 @@ func doP1() int {
 func doP2() int {
 	stonesList := parse()
 	stones := make(map[int]int)
+	splitCache := make(map[int][]int)
+	lenCache := make(map[int]int)
+	mulCache := make(map[int]int)
 	for _, v := range stonesList {
 		stones[v] += 1
 	}
 	for i := 0; i < 75; i++ {
-		stones = cycleStonesMap(stones)
+		stones = cycleStonesMap(stones, &splitCache, &lenCache, &mulCache)
 	}
 
 	total := 0
@@ -45,18 +48,32 @@ func doP2() int {
 
 }
 
-func cycleStonesMap(stones map[int]int) map[int]int {
+func cycleStonesMap(stones map[int]int, splitCache *map[int][]int, lenCache, mulCache *map[int]int) map[int]int {
 	update := make(map[int]int, len(stones))
 
 	for k := range stones {
 		if k == 0 {
 			update[1] += stones[k]
+			continue
+		}
+		if _, ok := (*lenCache)[k]; ok {
+			split := (*splitCache)[k]
+			update[split[0]] += stones[k]
+			update[split[1]] += stones[k]
 		} else if l := lenInt(k); l%2 == 0 {
 			front, back := splitInt(k, l)
 			update[front] += stones[k]
 			update[back] += stones[k]
+			(*lenCache)[k] = l
+			(*splitCache)[k] = []int{front, back}
 		} else {
-			update[k*2024] += stones[k]
+			if val, ok := (*mulCache)[k]; ok {
+				update[val] += stones[k]
+			} else {
+				val := k * 2024
+				update[val] += stones[k]
+				(*mulCache)[k] = val
+			}
 		}
 	}
 	return update
