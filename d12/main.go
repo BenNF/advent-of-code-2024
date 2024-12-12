@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
+	"time"
 )
 
 type point struct {
@@ -14,72 +14,54 @@ type point struct {
 }
 
 type region struct {
-	perimeter, area int
-	contained       []point
+	perimeter int
+	contained map[point]bool
 }
 
 func main() {
-	fmt.Println(doP1())
-	fmt.Println(doP2())
-
+	now := time.Now()
+	fmt.Println("p1: ", doP1(), "in: ", time.Since(now))
+	now = time.Now()
+	fmt.Println("p2: ", doP2(), "in: ", time.Since(now))
 }
 
 func doP1() int {
-	field := parse()
-	regions := make([]region, 0)
-	for i, v := range field {
-		for j, c := range v {
-			p := point{i, j}
-			check := true
-			for _, r := range regions {
-				if slices.Contains(r.contained, p) {
-					check = false
-					break
-				}
-			}
-			if !check {
-				continue
-			}
-			prev := make(map[point]bool)
-			region := findRegion(p, c, &field, &prev)
-			regions = append(regions, region)
-
-		}
-	}
+	regions := findRegions()
 	return scorePerimeter(regions)
 }
 
 func doP2() int {
+	regions := findRegions()
+	return scoreSides(regions)
 
+}
+
+func findRegions() []region {
 	field := parse()
 	regions := make([]region, 0)
+	globalContained := make(map[point]bool)
 	for i, v := range field {
 		for j, c := range v {
 			p := point{i, j}
-			check := true
-			for _, r := range regions {
-				if slices.Contains(r.contained, p) {
-					check = false
-					break
-				}
-			}
-			if !check {
+			if _, ok := globalContained[p]; ok {
 				continue
 			}
 			prev := make(map[point]bool)
-			region := findRegion(p, c, &field, &prev)
-			regions = append(regions, region)
+			perimeter := findRegion(p, c, &field, &prev)
+			regions = append(regions, region{perimeter, prev})
+			for k, v := range prev {
+				globalContained[k] = v
+			}
 
 		}
 	}
-	return scoreSides(regions)
-
+	return regions
 }
 
 func scoreSides(regions []region) int {
 	total := 0
 	for _, r := range regions {
-		total += r.area * countSides(r)
+		total += len(r.contained) * countSides(r)
 	}
 	return total
 }
@@ -87,65 +69,54 @@ func scoreSides(regions []region) int {
 // actually counting corners
 func countSides(r region) int {
 	sides := 0
-	for _, p := range r.contained {
-
+	for p := range r.contained {
 		//outer corner
-		if !slices.Contains(r.contained, point{p.i - 1, p.j}) && !slices.Contains(r.contained, point{p.i, p.j - 1}) {
+		if !mapContains(&r.contained, point{p.i - 1, p.j}) && !mapContains(&r.contained, point{p.i, p.j - 1}) {
 			sides++
 		}
-		if !slices.Contains(r.contained, point{p.i + 1, p.j}) && !slices.Contains(r.contained, point{p.i, p.j - 1}) {
+		if !mapContains(&r.contained, point{p.i + 1, p.j}) && !mapContains(&r.contained, point{p.i, p.j - 1}) {
 			sides++
 		}
-		if !slices.Contains(r.contained, point{p.i - 1, p.j}) && !slices.Contains(r.contained, point{p.i, p.j + 1}) {
+		if !mapContains(&r.contained, point{p.i - 1, p.j}) && !mapContains(&r.contained, point{p.i, p.j + 1}) {
 			sides++
 		}
-		if !slices.Contains(r.contained, point{p.i + 1, p.j}) && !slices.Contains(r.contained, point{p.i, p.j + 1}) {
+		if !mapContains(&r.contained, point{p.i + 1, p.j}) && !mapContains(&r.contained, point{p.i, p.j + 1}) {
 			sides++
 		}
-
-		//# Inner corners
-		if slices.Contains(r.contained, point{p.i - 1, p.j}) && slices.Contains(r.contained, point{p.i, p.j - 1}) && !slices.Contains(r.contained, point{p.i - 1, p.j - 1}) {
+		//Inner corners
+		if mapContains(&r.contained, point{p.i - 1, p.j}) && mapContains(&r.contained, point{p.i, p.j - 1}) && !mapContains(&r.contained, point{p.i - 1, p.j - 1}) {
 			sides++
 		}
-		if slices.Contains(r.contained, point{p.i + 1, p.j}) && slices.Contains(r.contained, point{p.i, p.j - 1}) && !slices.Contains(r.contained, point{p.i + 1, p.j - 1}) {
+		if mapContains(&r.contained, point{p.i + 1, p.j}) && mapContains(&r.contained, point{p.i, p.j - 1}) && !mapContains(&r.contained, point{p.i + 1, p.j - 1}) {
 			sides++
 		}
-		if slices.Contains(r.contained, point{p.i - 1, p.j}) && slices.Contains(r.contained, point{p.i, p.j + 1}) && !slices.Contains(r.contained, point{p.i - 1, p.j + 1}) {
+		if mapContains(&r.contained, point{p.i - 1, p.j}) && mapContains(&r.contained, point{p.i, p.j + 1}) && !mapContains(&r.contained, point{p.i - 1, p.j + 1}) {
 			sides++
 		}
-		if slices.Contains(r.contained, point{p.i + 1, p.j}) && slices.Contains(r.contained, point{p.i, p.j + 1}) && !slices.Contains(r.contained, point{p.i + 1, p.j + 1}) {
+		if mapContains(&r.contained, point{p.i + 1, p.j}) && mapContains(&r.contained, point{p.i, p.j + 1}) && !mapContains(&r.contained, point{p.i + 1, p.j + 1}) {
 			sides++
 		}
-
 	}
-	fmt.Println(r.area, sides, r.contained)
 	return sides
 }
 
-func findRegion(p point, c string, field *[][]string, visited *map[point]bool) region {
-	if !isInBounds(p, field) {
-		(*visited)[p] = true
-		return region{1, 0, []point{}}
+func mapContains(contains *map[point]bool, p point) bool {
+	_, ok := (*contains)[p]
+	return ok
+}
 
+func findRegion(p point, c string, field *[][]string, visited *map[point]bool) int {
+	if !isInBounds(p, field) {
+		return 1
 	}
 	if (*field)[p.i][p.j] != c {
-		(*visited)[p] = true
-		return region{1, 0, []point{}}
+		return 1
 	}
-
 	if _, ok := (*visited)[p]; ok {
-		return region{0, 0, []point{}}
+		return 0
 	}
-
 	(*visited)[p] = true
-	up := findRegion(point{p.i - 1, p.j}, c, field, visited)
-	down := findRegion(point{p.i + 1, p.j}, c, field, visited)
-	left := findRegion(point{p.i, p.j - 1}, c, field, visited)
-	right := findRegion(point{p.i, p.j + 1}, c, field, visited)
-
-	contained := append(make([]point, 0), p)
-	contained = slices.Concat(contained, up.contained, down.contained, left.contained, right.contained)
-	return region{up.perimeter + down.perimeter + right.perimeter + left.perimeter, 1 + up.area + down.area + left.area + right.area, contained}
+	return findRegion(point{p.i - 1, p.j}, c, field, visited) + findRegion(point{p.i + 1, p.j}, c, field, visited) + findRegion(point{p.i, p.j - 1}, c, field, visited) + findRegion(point{p.i, p.j + 1}, c, field, visited)
 }
 
 func isInBounds(p point, field *[][]string) bool {
@@ -155,7 +126,7 @@ func isInBounds(p point, field *[][]string) bool {
 func scorePerimeter(regions []region) int {
 	total := 0
 	for _, r := range regions {
-		total += r.area * r.perimeter
+		total += len(r.contained) * r.perimeter
 	}
 	return total
 }
