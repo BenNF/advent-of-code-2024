@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,91 +32,69 @@ func main() {
 
 func doP1() int {
 	robots := parse()
-	return score(computeRobots(100, width, height, &robots), height, width)
+	return score(computeRobots(100, &robots))
 }
 
 func doP2() int {
 	init := parse()
+	count := len(init)
+	wg := sync.WaitGroup{}
+	output := make(chan int, 1)
+	stop := make(chan bool)
 	for step := range 100000 {
-		robots := computeRobots(step, width, height, &init)
-		if lookLikeChristmasTree(&robots) {
-			return step
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case <-stop:
+				return
+			default:
+				robots := computeRobots(step, &init)
+				if len(robots) == count {
+					output <- step
+					close(stop)
+				}
+			}
+
+		}()
 	}
-	return 0
+	wg.Wait()
+	return <-output
 }
 
-func lookLikeChristmasTree(robots *[]robot) bool {
-	unique := make(map[point]bool, len(*robots))
-	for _, r := range *robots {
-		p := point{r.px, r.py}
-		if _, ok := unique[p]; ok {
-			return false
-		}
-		unique[p] = true
-	}
-
-	return true
-
-}
-
-// debug functions for manual checking
-func drawField(field [][]int, step int) {
-	fmt.Println(step, ":", strings.Repeat("-", width*2))
-	for _, r := range field {
-		fmt.Println(r)
-	}
-}
-
-func mapField(width, height int, robots *[]robot) [][]int {
-	field := make([][]int, height)
-	for i, _ := range field {
-		field[i] = make([]int, width)
-	}
-
-	for _, r := range *robots {
-		field[r.py][r.px] = 1
-	}
-	return field
-}
-
-func computeRobots(steps, width, height int, initalRobots *[]robot) []robot {
-	outRobots := make([]robot, len(*initalRobots))
-	for i, r := range *initalRobots {
+func computeRobots(steps int, initialRobots *[]robot) map[point]int {
+	outRobots := make(map[point]int, len(*initialRobots))
+	for _, r := range *initialRobots {
 		px := (r.px + (r.vx * steps)) % width
 		py := (r.py + (r.vy * steps)) % height
-
 		if px < 0 {
 			px = width + px
 		}
-
 		if py < 0 {
 			py = height + py
 		}
-
-		outRobots[i].px = px
-		outRobots[i].py = py
+		outRobots[point{px, py}]++
 	}
 	return outRobots
 }
 
-func score(robots []robot, height, width int) int {
+func score(robots map[point]int) int {
 	var q1, q2, q3, q4 int
 	horizontal := (width - 1) / 2
 	vertical := (height - 1) / 2
 
-	for _, r := range robots {
-		if r.px < horizontal && r.py < vertical {
-			q1++
+	for p := range robots {
+		if p.x < horizontal && p.y < vertical {
+			q1 += robots[p]
 		}
-		if r.px > horizontal && r.py < vertical {
-			q2++
+		if p.x > horizontal && p.y < vertical {
+			q2 += robots[p]
 		}
-		if (r.px < horizontal) && r.py > vertical {
-			q3++
+		if (p.x < horizontal) && p.y > vertical {
+			q3 += robots[p]
 		}
-		if (r.px > horizontal) && r.py > vertical {
-			q4++
+		if (p.x > horizontal) && p.y > vertical {
+			q4 += robots[p]
 		}
 	}
 	return q1 * q2 * q3 * q4
