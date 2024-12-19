@@ -64,6 +64,7 @@ func Path(from, to Pather) (path []Pather, distance float64, found bool) {
 		current.open = false
 		current.closed = true
 
+		//correct if the path estimator function is admissible
 		if current.pather.PathEstimatedCost(to) == 0 {
 			// Found a path to the goal.
 			p := make([]Pather, 0)
